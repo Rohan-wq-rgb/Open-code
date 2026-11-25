@@ -1,0 +1,24 @@
+# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo.
+services:
+  - type: web
+    name: open-code
+    runtime: python
+    plan: starter            # a persistent disk needs a paid plan (see README for the free option)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: APP_PASSWORD          # you type this in the Render dashboard (12+ characters)
+        sync: false
+      - key: OPENROUTER_API_KEYS   # one key, or up to 15 separated by commas
+        sync: false
+      - key: SESSION_SECRET        # generated for you, never leaves Render
+        generateValue: true
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: open-code-data
+      mountPath: /var/data
+      sizeGB: 1

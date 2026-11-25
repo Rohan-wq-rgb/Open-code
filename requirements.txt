@@ -1,0 +1,2 @@
+# No third-party packages: the server uses only the Python standard library (3.9+).
+# (Fewer dependencies means fewer things that can ship a vulnerability.)
