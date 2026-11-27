@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>OpenRouter Code</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header>
+  <span class="h-title">✻ OpenRouter Code</span>
+  <span class="h-space"></span>
+  <span id="keyStatus">signed out</span>
+  <button class="hbtn" id="toolsToggle" aria-expanded="true" title="Show or hide the tools box">▾ tools</button>
+</header>
+
+<section class="toolbox" id="toolbox" aria-label="Tools">
+  <div class="grp"><div class="glabel">Model</div><div class="gbtns">
+    <select id="model" aria-label="Model">
+      <option value="openrouter/free">openrouter/free</option>
+      <option value="openrouter/auto">openrouter/auto (paid)</option>
+      <option value="custom">custom…</option>
+    </select>
+    <input id="custom" type="text" placeholder="provider/model:free" hidden spellcheck="false" aria-label="Custom model ID">
+  </div></div>
+  <div class="grp"><div class="glabel">Project</div><div class="gbtns">
+    <button class="hbtn" id="folderBtn" title="Give the AI access to one folder">/folder</button>
+    <button class="hbtn" id="unlink" title="Disconnect the folder" hidden>/unlink</button>
+    <button class="hbtn" id="agentBtn" title="Let the assistant run shell commands on your computer">/agent</button>
+    <label class="chk" id="askWrap" hidden><input type="checkbox" id="ask" checked> confirm writes</label>
+  </div></div>
+  <div class="grp"><div class="glabel">Session</div><div class="gbtns">
+    <button class="hbtn" id="histBtn" title="Search and reopen past chats">/history</button>
+    <button class="hbtn" id="termBtn" title="Sandbox terminal on the server">/term</button>
+    <button class="hbtn" id="newChat" title="Start a new session">/clear</button>
+    <button class="hbtn" id="keyBtn" title="Sign out">/logout</button>
+    <button class="hbtn" id="brainBtn" title="Fallback used only when the API fails">/brain</button>
+    <button class="hbtn" id="hackBtn" title="Fake movie-style hacking screen (offline)">/hack</button>
+  </div></div>
+  <div class="grp"><div class="glabel">Text size</div><div class="gbtns">
+    <button class="hbtn sq" id="fsDown" aria-label="Smaller text">A−</button>
+    <button class="hbtn sq" id="fsUp" aria-label="Bigger text">A+</button>
+  </div></div>
+</section>
+
+<div id="loginModal" hidden>
+  <div class="sbox" style="max-width:420px">
+    <div class="sbox-head">[ SIGN IN ]</div>
+    <div class="sbox-desc">Enter the password you set as <code>APP_PASSWORD</code>. The OpenRouter API key stays on the server and never reaches your browser.</div>
+    <div class="srow"><input id="loginPw" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password"><button class="hbtn on" id="loginBtn">SIGN IN</button></div>
+    <div id="keyErr"></div>
+  </div>
+</div>
+
+<div id="histModal" hidden>
+  <div class="sbox">
+    <div class="sbox-head">[ CHAT HISTORY ]<span id="hCount"></span></div>
+    <div class="srow"><input id="hSearch" type="text" placeholder="Search your chats…" autocomplete="off" spellcheck="false" aria-label="Search chats"></div>
+    <div id="hList"></div>
+    <div class="hm" id="hNote" style="margin-bottom:4px"></div>
+    <div class="sact"><button class="hbtn" id="hClearAll">Delete all</button><button class="hbtn" id="hClose">Close</button></div>
+  </div>
+</div>
+
+<div id="termModal" hidden>
+  <div class="sbox" style="max-width:760px;width:calc(100% - 24px)">
+    <div class="sbox-head">[ SANDBOX TERMINAL ]</div>
+    <div class="sbox-desc">Runs on the server, one command at a time, in a temporary folder. The app's API key and password are not passed to it. Each command is one-shot, so long-running servers are not supported. Internet is blocked only for common tools (best effort, not guaranteed).</div>
+    <div id="termOut" aria-live="polite"></div>
+    <div class="srow"><input id="termIn" type="text" placeholder="type a command and press Enter" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Terminal command"><button class="hbtn on" id="termRun">RUN</button></div>
+    <div class="sact"><button class="hbtn" id="termReset">NEW FOLDER</button><button class="hbtn" id="termClose">CLOSE</button></div>
+  </div>
+</div>
+
+<div id="agentModal" hidden>
+  <div class="sbox">
+    <div class="sbox-head">[ LOCAL AGENT ]</div>
+    <div class="sbox-desc">Lets the assistant run shell commands <b>on your own computer</b> (never on this server), inside one project folder. You approve every command. Start the agent in that folder:<br><code id="agCmd"></code><br>Then paste the token it prints.</div>
+    <div class="srow"><input id="agUrl" type="text" placeholder="http://127.0.0.1:8765" spellcheck="false" autocomplete="off" aria-label="Agent address"></div>
+    <div class="srow"><input id="agTok" type="password" placeholder="Token from the agent window" autocomplete="off" spellcheck="false" aria-label="Agent token"></div>
+    <div class="sact"><button class="hbtn on" id="agConnect">CONNECT</button><button class="hbtn" id="agOff">DISCONNECT</button><button class="hbtn" id="agClose">CLOSE</button></div>
+    <div id="agMsg"></div>
+  </div>
+</div>
+
+<div id="brainModal" hidden>
+  <div class="sbox">
+    <div class="sbox-head">[ CUSTOM BRAIN ]</div>
+    <div class="sbox-desc">Used <b>only when the OpenRouter API fails</b>. Point it at any OpenAI-compatible endpoint, for example a local Ollama (<code>http://localhost:11434/v1</code>, started with <code>OLLAMA_ORIGINS=*</code>). If it is empty or also fails, the built-in offline brain answers instead.</div>
+    <div class="srow"><input id="bUrl" type="text" placeholder="Endpoint, e.g. http://localhost:11434/v1" spellcheck="false" autocomplete="off" aria-label="Endpoint URL"></div>
+    <div class="srow"><input id="bModel" type="text" placeholder="Model, e.g. llama3.2" spellcheck="false" autocomplete="off" aria-label="Model name"></div>
+    <div class="srow"><input id="bKey" type="password" placeholder="API key (optional)" autocomplete="off" aria-label="Brain API key"></div>
+    <div class="sact"><button class="hbtn on" id="bSave">SAVE</button><button class="hbtn" id="bClear">CLEAR</button><button class="hbtn" id="bClose">CLOSE</button></div>
+    <div id="bMsg"></div>
+  </div>
+</div>
+
+<main id="chat">
+  <div id="msgs">
+    <div id="empty">
+      <div class="welcome">
+        <div class="w-title"><span class="star">✻</span> Welcome to <b>OpenRouter Code</b>!</div>
+        <div class="w-sub"><i>/help</i> for help, <i>/logout</i> to sign out</div>
+        <div class="w-info">model: <span id="emptyModel">openrouter/free</span><br>cwd: <span id="emptyFolder">not connected</span><br>fallback: <span id="emptyBrain">offline brain</span></div>
+      </div>
+      <div class="tips">Tips for getting started:<br>
+        1. Run <b>/folder</b> so I can read and write files in a project<br>
+        2. Attach files with <b>/import</b>, drag and drop, or paste<br>
+        3. Run <b>/help</b> to see every command</div>
+    </div>
+  </div>
+</main>
+
+<div id="err" role="alert"></div>
+
+<footer>
+  <div id="chips"></div>
+  <div class="iline">
+    <span id="promptLabel">&gt;</span>
+    <textarea id="ta" rows="1" placeholder=" " aria-label="Message"></textarea>
+    <input type="file" id="fileIn" multiple hidden>
+    <button id="imp" title="Import files, or drag and drop, or paste">attach</button>
+    <button id="go">send</button>
+  </div>
+  <div class="hint"><span id="hintL">? for shortcuts</span><span id="hintR"></span></div>
+</footer>
+
+<div id="hack" hidden>
+  <div id="hTop"><b>GHOSTSHELL v4.2</b><span>type anything · ENTER = run · TAB = auto · ESC = exit</span><span class="sp"></span><button class="hbtn" id="hAuto">[ AUTO: OFF ]</button><button class="hbtn" id="hExit">[ EXIT ]</button></div>
+  <div id="hScreen"><pre id="hOut"><span class="cur">█</span></pre></div>
+  <div id="hBanner" hidden></div>
+  <input id="hIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type anything to run commands">
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
