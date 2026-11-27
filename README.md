@@ -48,6 +48,9 @@ History then resets on every restart or deploy, and the service sleeps when idle
 | `MAX_TOKENS` | no, default `8192` | cap on tokens per reply |
 | `CHAT_RATE_PER_MIN` | no, default `60` | chat requests per minute per client |
 | `APP_URL` | no | sent to OpenRouter as the referrer (for their app listing) |
+| `GITHUB_TOKEN` | no | read-only GitHub token; turns on the GitHub tools |
+| `GITHUB_ALLOWED_REPOS` | no | comma-separated `owner/repo` or `owner/*` the assistant may read |
+| `TERM_DIR` | no | where `/term` keeps its temporary folders |
 
 In production (`RENDER=true`, set by Render) the server **refuses to start** if the password, session secret or API key are missing or weak.
 
@@ -129,6 +132,40 @@ through the `run_command` tool when no local agent is connected.
   commands on the server, and a determined user could try to exploit the server itself. Keep the password private.
 - **Node.js and other tools** may be missing from the Python runtime. `python3` and `sh` are normally there.
 
+## GitHub (read-only)
+
+The assistant can read your GitHub: list repositories, search code, read files and folders, read issues and pull requests
+(with comments and changed files) and list commits. It **cannot** write, push, comment or merge: the server only ever sends
+`GET` requests to `api.github.com`.
+
+1. On GitHub: **Settings -> Developer settings -> Personal access tokens -> Fine-grained tokens -> Generate new token**.
+   - **Repository access:** *Only select repositories*, and pick just the ones you want the assistant to see.
+   - **Permissions (all Read-only):** Contents, Issues, Pull requests (Metadata is added automatically).
+   - Set an expiry (30-90 days) and copy the token.
+2. On Render -> **Environment**, add:
+   - `GITHUB_TOKEN` = the token
+   - `GITHUB_ALLOWED_REPOS` = `you/project-a,you/project-b` (optional but recommended; `you/*` allows everything under that owner)
+3. Save (Render redeploys). Ask something like "list my open issues in you/project-a" or "read src/app.py in you/project-b".
+
+How it is protected:
+
+- The token lives only on the server. It is never sent to the browser, never logged and never shown to the model.
+- Read-only: fixed host (`api.github.com`), `GET` only, no redirects followed.
+- Two layers of scope: the token's own repository selection, plus the allow-list the server enforces.
+  Search is pinned to the repo you pass, and `repo:`, `org:` and `user:` tricks inside a query are rejected.
+- Paths, refs, repo names and numbers are validated; file reads are capped (300 KB, text only); output is capped.
+- Everything returned is labelled as untrusted, and the assistant is told never to follow instructions found in files, issues or comments.
+
+What to keep in mind:
+
+- **Prompt injection.** An issue or file can contain text written to trick an AI ("ignore your instructions..."). The labelling
+  helps but is not a guarantee. The assistant has no write access to GitHub, but if you also connect `/agent` or `/term`, treat
+  commands it proposes after reading untrusted text with extra care, and keep the approval prompt on.
+- **Privacy.** Code and issue text you ask about is sent to the model provider you chose on OpenRouter. Do not connect repositories
+  whose content you cannot share with that provider.
+- Code search can return fewer results depending on the token type. If it finds nothing, ask for `get_file` or `list_commits`.
+- Treat secrets that were committed to a repo as readable by the assistant. Rotate them.
+
 ## Run locally
 
 ```bash
@@ -142,4 +179,4 @@ Without `APP_PASSWORD` a random one is generated and printed at start-up.
 ```bash
 python -m unittest discover -s tests -v
 ```
-They start the real server against a mock OpenRouter and check sign-in, lockout, cookie flags, key rotation, key secrecy, paid-model blocking, CSRF/host checks, history search and the production start-up rules. They also start the local agent and check its token, origin and host checks, secret scrubbing, refusals, timeouts, output limits and cancel. GitHub Actions runs them on every push.
+They start the real server against a mock OpenRouter and check sign-in, lockout, cookie flags, key rotation, key secrecy, paid-model blocking, CSRF/host checks, history search and the production start-up rules. They also check the GitHub tools against a mock GitHub (allow-list, query injection, path traversal, read-only, token secrecy), the sandbox terminal, and start the local agent and check its token, origin and host checks, secret scrubbing, refusals, timeouts, output limits and cancel. GitHub Actions runs them on every push.
